@@ -9,14 +9,12 @@ app.config["SECTRET_KEY"] = "Buya213Jesu"
 app.config['SECRET_KEY'] = 'super secret key'
 socketio = SocketIO(app)
 
-rooms = {
+rooms = {}
 
-}
-
-def generate_unique_code(Length):
+def generate_unique_code(length):
     while True:
         code = ""
-        for _ in range(Length):
+        for _ in range(length):
             code += random.choice(ascii_uppercase)
 
         if code not in rooms:
@@ -46,7 +44,7 @@ def home():
             rooms[room] = {"members": 0, "messages": []}
 
         elif code not in rooms:
-            return render_template("home.html", error="Room does not exist." ,code=code, name=name)
+            return render_template("home.html", error="Room does not exist." , code=code, name=name)
 
         #storing information
         session["room"] = room
@@ -73,6 +71,29 @@ def connect(auth):
     if not room or not name:
         return
     if room not in rooms:
+        leave_room(room)
+        return
+    
+    join_room(room)
+    send({"name": name, "message": "has entered the room"}, to=room) #JSON
+    rooms[room]["members"] +=1
+    print(f"{name} joined room {room}")
+
+@socketio.on("disconnect")
+def disconnect():
+    room = session.get("room")
+    name = session.get("name")
+    leave_room(room)
+
+    if room in rooms:
+        rooms[room]["members"] -= 1
+        if rooms[room]["members"] <=0:
+            del rooms[room]
+
+    send({"name": name, "message": "has left the room"})        
+
+
+
 
 if __name__ == "__main__":
     socketio.run(app, debug=True)
